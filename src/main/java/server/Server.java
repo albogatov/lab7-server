@@ -2,12 +2,15 @@ package server;
 
 import commons.app.Command;
 import commons.app.CommandCenter;
+import commons.commands.Login;
+import commons.commands.Register;
 import commons.commands.Save;
 import commons.elements.Worker;
 import commons.utils.InteractionInterface;
 import server.interaction.Storage;
 import server.interaction.StorageInteraction;
 import commons.utils.UserInterface;
+import server.utils.DataBaseCenter;
 import server.utils.ReadyCSVParser;
 import commons.utils.SerializationTool;
 
@@ -15,12 +18,14 @@ import javax.naming.LimitExceededException;
 import java.io.*;
 import java.net.*;
 import java.time.format.DateTimeParseException;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class Server implements Runnable {
     public static final Logger logger = Logger.getLogger(
             Server.class.getName());
+    private DataBaseCenter dataBaseCenter;
     private String[] arguments;
     private DatagramSocket datagramSocket;
     private File dataFile;
@@ -33,9 +38,13 @@ public class Server implements Runnable {
 
     public static void main(String[] args) {
         logger.log(Level.INFO, "commons.app.server operation initiated");
-        Server server = new Server();
+        Server server = new Server(new DataBaseCenter());
         server.setArguments(args);
         server.run();
+    }
+
+    public Server(DataBaseCenter dbc) {
+        this.dataBaseCenter = dbc;
     }
 
     public void setArguments(String[] arguments) {
@@ -62,6 +71,10 @@ public class Server implements Runnable {
                 logger.log(Level.INFO, "Collection saving initiated");
                 CommandCenter.getInstance().executeCommand(userInterface, "save", interactiveStorage);
             } else {
+                if (cmd.getClass().getName().contains(".Register"))
+                    authoriseUser(cmd.getArgument(), cmd.getAdditionalArgument(), "new");
+                if (cmd.getClass().getName().contains(".Login"))
+                    authoriseUser(cmd.getArgument(), cmd.getAdditionalArgument(), "old");
                 if (cmd.getArgumentAmount() == 0) {
                     logger.log(Level.INFO, "Executing command without arguments");
                     CommandCenter.getInstance().executeCommand(userInterface, cmd, interactiveStorage);
@@ -163,6 +176,22 @@ public class Server implements Runnable {
             } catch (Exception e) {
                 logger.log(Level.SEVERE, "An unknown Exception has occurred", e);
                 System.exit(-1);
+            }
+        }
+    }
+
+    public void authoriseUser(String user, String password, String existence) {
+        if (existence.equals("new")) {
+            if (dataBaseCenter.addUser(user, password)) {
+                CommandCenter.getInstance().executeCommand(userInterface, new Register(), true);
+            } else {
+                CommandCenter.getInstance().executeCommand(userInterface, new Register(), false);
+            }
+        } else {
+            if (dataBaseCenter.loginUser(user, password)) {
+                CommandCenter.getInstance().executeCommand(userInterface, new Login(), true);
+            } else {
+                CommandCenter.getInstance().executeCommand(userInterface, new Login(), false);
             }
         }
     }
