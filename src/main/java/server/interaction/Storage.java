@@ -13,7 +13,7 @@ public class Storage implements StorageInterface<Worker> {
     /**
      * Хранимая коллекция.
      */
-    private final HashSet<Worker> workers = new HashSet<>();
+    private HashSet<Worker> workers = new HashSet<>();
     /**
      * Дата создания.
      */
@@ -26,6 +26,7 @@ public class Storage implements StorageInterface<Worker> {
      * Поле, обозначающее такое максимальное занятое значение ID, которое входит в отрезок от 0 до maxConsecutiveId.
      */
     private long maxConsecutiveId = 0;
+
     /**
      * Стандартный конструктор, задает дату создания.
      */
@@ -76,6 +77,10 @@ public class Storage implements StorageInterface<Worker> {
         return workers;
     }
 
+    public void setCollection(HashSet<Worker> collection) {
+        this.workers = collection;
+    }
+
     /**
      * Метод генерации идентификатора.
      *
@@ -84,12 +89,12 @@ public class Storage implements StorageInterface<Worker> {
      */
     public Worker generateId(Worker worker) throws LimitExceededException {
         long id;
-        for(id = maxConsecutiveId + 1; id < Long.MAX_VALUE; id++) {
-            if(!idList.contains(id)) {
+        for (id = maxConsecutiveId + 1; id < Long.MAX_VALUE; id++) {
+            if (!idList.contains(id)) {
                 maxConsecutiveId = id;
                 break;
             }
-            if(maxConsecutiveId + 1L == Long.MAX_VALUE) {
+            if (maxConsecutiveId + 1L == Long.MAX_VALUE) {
                 throw new LimitExceededException("В коллекции достигнуто максимальное количество элементов");
             }
         }

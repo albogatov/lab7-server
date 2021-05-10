@@ -78,22 +78,26 @@ public class Server implements Runnable {
                 if (cmd.getArgumentAmount() == 0) {
                     logger.log(Level.INFO, "Executing command without arguments");
                     CommandCenter.getInstance().executeCommand(userInterface, cmd, interactiveStorage);
+                    interactiveStorage = dataBaseCenter.retrieveCollectionFromDB(storage);
                 }
                 if (cmd.getArgumentAmount() == 1 && !cmd.getNeedsObject()) {
                     logger.log(Level.INFO, "Executing command with a String argument");
                     argument = cmd.getArgument();
                     CommandCenter.getInstance().executeCommand(userInterface, cmd, argument, interactiveStorage);
+                    interactiveStorage = dataBaseCenter.retrieveCollectionFromDB(storage);
                 }
                 if (cmd.getArgumentAmount() == 1 && cmd.getNeedsObject()) {
                     logger.log(Level.INFO, "Executing command with an object as an argument");
                     worker = cmd.getObject();
-                    CommandCenter.getInstance().executeCommand(userInterface, cmd, interactiveStorage, worker);
+                    CommandCenter.getInstance().executeCommand(userInterface, cmd, interactiveStorage, worker, dataBaseCenter);
+                    interactiveStorage = dataBaseCenter.retrieveCollectionFromDB(storage);
                 }
                 if (cmd.getArgumentAmount() == 2 && cmd.getNeedsObject()) {
                     logger.log(Level.INFO, "Executing command with arguments of various types");
                     argument = cmd.getArgument();
                     worker = cmd.getObject();
-                    CommandCenter.getInstance().executeCommand(userInterface, cmd, argument, interactiveStorage, worker);
+                    CommandCenter.getInstance().executeCommand(userInterface, cmd, argument, interactiveStorage, worker, dataBaseCenter);
+                    interactiveStorage = dataBaseCenter.retrieveCollectionFromDB(storage);
                 }
             }
 
@@ -108,28 +112,25 @@ public class Server implements Runnable {
     public void run() {
         logger.log(Level.INFO, "The server is now operational");
         try {
-            logger.log(Level.INFO, "Processing cmd arguments");
-            if (arguments.length == 2) {
-                logger.log(Level.INFO, "Recognized 2 arguments, a custom separator is chosen");
-                dataFile = new File(arguments[0]);
-                separator = arguments[1].charAt(0);
-            }
-            if (arguments.length == 1) {
-                logger.log(Level.INFO, "Recognized 1 argument, collection will be parsed using a default separator");
-                dataFile = new File(arguments[0]);
-                separator = ",".charAt(0);
-            }
-            if (arguments.length < 1 || arguments.length > 2 || arguments[0].matches("(/dev/)\\w*")) {
-                logger.log(Level.SEVERE, "Invalid arguments");
-                System.exit(-1);
-            }
-            ReadyCSVParser.initParser(separator);
+//            logger.log(Level.INFO, "Processing cmd arguments");
+//            if (arguments.length == 2) {
+//                logger.log(Level.INFO, "Recognized 2 arguments, a custom separator is chosen");
+//                dataFile = new File(arguments[0]);
+//                separator = arguments[1].charAt(0);
+//            }
+//            if (arguments.length == 1) {
+//                logger.log(Level.INFO, "Recognized 1 argument, collection will be parsed using a default separator");
+//                dataFile = new File(arguments[0]);
+//                separator = ",".charAt(0);
+//            }
+//            if (arguments.length < 1 || arguments.length > 2 || arguments[0].matches("(/dev/)\\w*")) {
+//                logger.log(Level.SEVERE, "Invalid arguments");
+//                System.exit(-1);
+//            }
+//            ReadyCSVParser.initParser(separator);
             try {
-                logger.log(Level.INFO, "Reading the collection from original file");
-                ReadyCSVParser.readWorkers(dataFile, storage.getCollection(), storage);
-            } catch (FileNotFoundException e) {
-                logger.log(Level.SEVERE, "The given file was not found", e);
-                System.exit(-1);
+                logger.log(Level.INFO, "Reading the collection from database");
+                dataBaseCenter.retrieveCollectionFromDB(storage);
             } catch (NullPointerException e) {
                 logger.log(Level.SEVERE, "File data is invalid or incorrect CSV separator was chosen", e);
                 System.exit(-1);
@@ -142,13 +143,10 @@ public class Server implements Runnable {
             } catch (IllegalArgumentException e) {
                 logger.log(Level.SEVERE, "File is invalid", e);
                 System.exit(-1);
-            } catch (LimitExceededException e) {
-                logger.log(Level.SEVERE, "Somehow, the number of collection commons.elements is too big", e);
-                System.exit(-1);
             }
             datagramSocket = new DatagramSocket(port);
             userInterface.connectToServer(datagramSocket);
-            interactiveStorage = new StorageInteraction(storage, arguments[0], separator);
+            interactiveStorage = new StorageInteraction(storage);
             logger.log(Level.INFO, "Collection successfully uploaded");
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 logger.log(Level.INFO, "Collection saving...");
