@@ -275,4 +275,12 @@ public final class StorageInteraction implements InteractionInterface {
     public String returnSeparator() {
         return Character.toString(separator);
     }
+
+    public void addAll(HashSet<Worker> collection) {
+        storage.getCollection().addAll(collection);
+    }
+
+    public Storage getStorage() {
+        return storage;
+    }
 }

@@ -11,6 +11,7 @@ import server.interaction.Storage;
 import server.interaction.StorageInteraction;
 import commons.utils.UserInterface;
 import server.utils.DataBaseCenter;
+import server.utils.PasswordEncoder;
 import server.utils.ReadyCSVParser;
 import commons.utils.SerializationTool;
 
@@ -35,6 +36,8 @@ public class Server implements Runnable {
     private final int port = 7855;
     private Storage storage = new Storage();
     private InteractionInterface interactiveStorage = null;
+    String login;
+    String password;
 
     public static void main(String[] args) {
         logger.log(Level.INFO, "commons.app.server operation initiated");
@@ -71,36 +74,38 @@ public class Server implements Runnable {
                 logger.log(Level.INFO, "Collection saving initiated");
                 CommandCenter.getInstance().executeCommand(userInterface, "save", interactiveStorage);
             } else {
-                if (cmd.getClass().getName().contains(".Register"))
-                    authoriseUser(cmd.getArgument(), cmd.getAdditionalArgument(), "new");
-                if (cmd.getClass().getName().contains(".Login"))
-                    authoriseUser(cmd.getArgument(), cmd.getAdditionalArgument(), "old");
-                if (cmd.getArgumentAmount() == 0) {
-                    logger.log(Level.INFO, "Executing command without arguments");
-                    CommandCenter.getInstance().executeCommand(userInterface, cmd, interactiveStorage);
-                    interactiveStorage = dataBaseCenter.retrieveCollectionFromDB(storage);
+                if (cmd.getClass().getName().contains(".Register") && authoriseUser(cmd.getArgument(), cmd.getAdditionalArgument(), "new") ||
+                        cmd.getClass().getName().contains(".Login") && authoriseUser(cmd.getArgument(), cmd.getAdditionalArgument(), "old")) {
+                    if (cmd.getArgumentAmount() == 0) {
+                        logger.log(Level.INFO, "Executing command without arguments");
+                        CommandCenter.getInstance().executeCommand(userInterface, cmd, interactiveStorage, dataBaseCenter);
+                    }
+                    if (cmd.getArgumentAmount() == 1 && !cmd.getNeedsObject()) {
+                        logger.log(Level.INFO, "Executing command with a String argument");
+                        argument = cmd.getArgument();
+                        CommandCenter.getInstance().executeCommand(userInterface, cmd, argument, interactiveStorage, dataBaseCenter);
+                    }
+                    if (cmd.getArgumentAmount() == 1 && cmd.getNeedsObject()) {
+                        logger.log(Level.INFO, "Executing command with an object as an argument");
+                        worker = cmd.getObject();
+                        CommandCenter.getInstance().executeCommand(userInterface, cmd, interactiveStorage, worker, dataBaseCenter);
+                    }
+                    if (cmd.getArgumentAmount() == 2 && cmd.getNeedsObject()) {
+                        logger.log(Level.INFO, "Executing command with arguments of various types");
+                        argument = cmd.getArgument();
+                        worker = cmd.getObject();
+                        CommandCenter.getInstance().executeCommand(userInterface, cmd, argument, interactiveStorage, worker, dataBaseCenter);
+                    }
                 }
-                if (cmd.getArgumentAmount() == 1 && !cmd.getNeedsObject()) {
-                    logger.log(Level.INFO, "Executing command with a String argument");
-                    argument = cmd.getArgument();
-                    CommandCenter.getInstance().executeCommand(userInterface, cmd, argument, interactiveStorage);
-                    interactiveStorage = dataBaseCenter.retrieveCollectionFromDB(storage);
-                }
-                if (cmd.getArgumentAmount() == 1 && cmd.getNeedsObject()) {
-                    logger.log(Level.INFO, "Executing command with an object as an argument");
-                    worker = cmd.getObject();
-                    CommandCenter.getInstance().executeCommand(userInterface, cmd, interactiveStorage, worker, dataBaseCenter);
-                    interactiveStorage = dataBaseCenter.retrieveCollectionFromDB(storage);
-                }
-                if (cmd.getArgumentAmount() == 2 && cmd.getNeedsObject()) {
-                    logger.log(Level.INFO, "Executing command with arguments of various types");
-                    argument = cmd.getArgument();
-                    worker = cmd.getObject();
-                    CommandCenter.getInstance().executeCommand(userInterface, cmd, argument, interactiveStorage, worker, dataBaseCenter);
-                    interactiveStorage = dataBaseCenter.retrieveCollectionFromDB(storage);
-                }
+//                if (cmd.getClass().getName().contains(".Register") && authoriseUser(cmd.getArgument(), cmd.getAdditionalArgument(), "new")) {
+//                    login = cmd.getArgument();
+//                    password = cmd.getAdditionalArgument();
+//                }
+//                if (cmd.getClass().getName().contains(".Login") && authoriseUser(cmd.getArgument(), cmd.getAdditionalArgument(), "old")) {
+//                    login = cmd.getArgument();
+//                    password = cmd.getAdditionalArgument();
+//                }
             }
-
         } catch (IOException e) {
             logger.log(Level.SEVERE, "An I/O Exception has occurred", e);
             if (e instanceof SocketTimeoutException)
@@ -111,26 +116,12 @@ public class Server implements Runnable {
     @Override
     public void run() {
         logger.log(Level.INFO, "The server is now operational");
+        interactiveStorage = new StorageInteraction(storage);
         try {
-//            logger.log(Level.INFO, "Processing cmd arguments");
-//            if (arguments.length == 2) {
-//                logger.log(Level.INFO, "Recognized 2 arguments, a custom separator is chosen");
-//                dataFile = new File(arguments[0]);
-//                separator = arguments[1].charAt(0);
-//            }
-//            if (arguments.length == 1) {
-//                logger.log(Level.INFO, "Recognized 1 argument, collection will be parsed using a default separator");
-//                dataFile = new File(arguments[0]);
-//                separator = ",".charAt(0);
-//            }
-//            if (arguments.length < 1 || arguments.length > 2 || arguments[0].matches("(/dev/)\\w*")) {
-//                logger.log(Level.SEVERE, "Invalid arguments");
-//                System.exit(-1);
-//            }
-//            ReadyCSVParser.initParser(separator);
             try {
                 logger.log(Level.INFO, "Reading the collection from database");
-                dataBaseCenter.retrieveCollectionFromDB(storage);
+                dataBaseCenter.createTable();
+                dataBaseCenter.retrieveCollectionFromDB(interactiveStorage);
             } catch (NullPointerException e) {
                 logger.log(Level.SEVERE, "File data is invalid or incorrect CSV separator was chosen", e);
                 System.exit(-1);
@@ -146,7 +137,6 @@ public class Server implements Runnable {
             }
             datagramSocket = new DatagramSocket(port);
             userInterface.connectToServer(datagramSocket);
-            interactiveStorage = new StorageInteraction(storage);
             logger.log(Level.INFO, "Collection successfully uploaded");
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 logger.log(Level.INFO, "Collection saving...");
@@ -163,7 +153,8 @@ public class Server implements Runnable {
                     } else throw e;
                 }
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
+            e.printStackTrace();
             logger.log(Level.SEVERE, "An I/O Exception has occurred", e);
         } finally {
             try {
@@ -178,18 +169,34 @@ public class Server implements Runnable {
         }
     }
 
-    public void authoriseUser(String user, String password, String existence) {
+    public boolean authoriseUser(String user, String password, String existence) {
+        System.out.println(PasswordEncoder.getHexString(password));
+//        String checkPwd = PasswordEncoder.hashOldPassword(password);
+        String saltedPwd = PasswordEncoder.getHexString(password);
+        System.out.println(saltedPwd);
+        dataBaseCenter.setUser(login);
+        dataBaseCenter.setPassword(saltedPwd);
         if (existence.equals("new")) {
-            if (dataBaseCenter.addUser(user, password)) {
+            if (dataBaseCenter.addUser(user, saltedPwd)) {
+                login = user;
+                this.password = saltedPwd;
                 CommandCenter.getInstance().executeCommand(userInterface, new Register(), true);
+                return true;
             } else {
                 CommandCenter.getInstance().executeCommand(userInterface, new Register(), false);
+                return false;
             }
         } else {
-            if (dataBaseCenter.loginUser(user, password)) {
+            if (dataBaseCenter.loginUser(user, saltedPwd)) {
+                System.out.println("login true");
+                login = user;
+                this.password = saltedPwd;
                 CommandCenter.getInstance().executeCommand(userInterface, new Login(), true);
+                return true;
             } else {
+                System.out.println("login fuck");
                 CommandCenter.getInstance().executeCommand(userInterface, new Login(), false);
+                return false;
             }
         }
     }
