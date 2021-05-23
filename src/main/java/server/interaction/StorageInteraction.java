@@ -182,16 +182,19 @@ public final class StorageInteraction implements InteractionInterface {
      *
      * @param worker объект для сравнения.
      */
-    public void removeGreater(Worker worker) {
+    public List<Long> removeGreater(Worker worker) {
         HashSet<Worker> workers = storage.getCollection();
         List<Worker> toBeSortedWorkers = new ArrayList<>(workers);
+        List<Long> deletionIds = new ArrayList<>();
 //        List<Worker> toBeRemovedWorkers = new ArrayList<>();
         toBeSortedWorkers.sort(Comparator.comparing(Worker::getSalary));
         List<Worker> toBeRemovedWorkers = toBeSortedWorkers.stream().
                 filter(worker1 -> worker1.compareTo(worker) > 0).
                 collect(Collectors.toList());
+        toBeRemovedWorkers.forEach(worker1 -> deletionIds.add(Long.parseLong(String.valueOf(worker1.getId()))));
         toBeRemovedWorkers.
                 forEach(worker1 -> storage.getCollection().remove(worker1));
+        return deletionIds;
     }
 
     /**
@@ -199,15 +202,18 @@ public final class StorageInteraction implements InteractionInterface {
      *
      * @param worker объект для сравнения.
      */
-    public void removeLower(Worker worker) {
+    public List<Long> removeLower(Worker worker) {
         HashSet<Worker> workers = storage.getCollection();
         List<Worker> toBeSortedWorkers = new ArrayList<>(workers);
+        List<Long> deletionIds = new ArrayList<>();
         toBeSortedWorkers.sort(Comparator.comparing(Worker::getSalary));
         List<Worker> toBeRemovedWorkers = toBeSortedWorkers.stream().
                 filter(worker1 -> worker1.compareTo(worker) < 0).
                 collect(Collectors.toList());
+        toBeRemovedWorkers.forEach(worker1 -> deletionIds.add(Long.parseLong(String.valueOf(worker1.getId()))));
         toBeRemovedWorkers.
                 forEach(worker1 -> storage.getCollection().remove(worker1));
+        return deletionIds;
     }
 
     /**

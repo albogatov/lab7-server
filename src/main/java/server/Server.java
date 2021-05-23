@@ -60,24 +60,17 @@ public class Server implements Runnable {
         Worker worker;
         try {
             logger.log(Level.INFO, "Receiving command from client");
-            System.out.println(1);
             datagramSocket.receive(inCommand);
-            System.out.println(2);
             cmd = (Command) new SerializationTool().deserializeObject(receiver);
-            System.out.println(3);
             InetAddress clientAddress = inCommand.getAddress();
-            System.out.println(4);
             CommandCenter.setClientAddress(clientAddress);
             int clientPort = inCommand.getPort();
-            System.out.println(5);
             CommandCenter.setClientPort(clientPort);
-            System.out.println(6);
             if (cmd.getClass().toString().contains(".Register"))
                 authorisation = authoriseUser(cmd.getUser(), "new");
             if (cmd.getClass().toString().contains(".Login"))
                 authorisation = authoriseUser(cmd.getUser(), "old");
             if (authorisation) {
-                System.out.println(7);
                 if (cmd.getCommand().equals("exit")) {
                     logger.log(Level.INFO, "Collection saving initiated");
                     CommandCenter.getInstance().executeCommand(userInterface, "save", interactiveStorage);
@@ -187,11 +180,9 @@ public class Server implements Runnable {
             }
         } else {
             if (dataBaseCenter.loginUser(user)) {
-                System.out.println("login true");
                 CommandCenter.getInstance().executeCommand(userInterface, new Login(), true);
                 return true;
             } else {
-                System.out.println("login fuck");
                 CommandCenter.getInstance().executeCommand(userInterface, new Login(), false);
                 return false;
             }

@@ -14,3 +14,4 @@ Venice
 show
 help
 remove_by_id 21
+execute_script script.txt
