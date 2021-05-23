@@ -1,5 +1,6 @@
 package server.utils;
 
+import commons.app.User;
 import commons.elements.*;
 import commons.utils.InteractionInterface;
 import server.interaction.Storage;
@@ -17,8 +18,6 @@ public class DataBaseCenter {
     private final String URL = "jdbc:postgresql://localhost:5432/postgres";
     private String user = "postgres";
     private String password = "zaqsedxcft";
-    private String loggedUser;
-    private String loggedPassword;
 
     {
         try (Connection connection = DriverManager.getConnection(URL, user, password)) {
@@ -36,7 +35,7 @@ public class DataBaseCenter {
         }
     }
 
-    public boolean addUser(String login, String pwd) {
+    public boolean addUser(User newUser) {
 //        try (Connection connection = DriverManager.getConnection(URL, user, password)) {
 //            String query = "CREATE ROLE " + login + " WITH\n " +
 //                    "LOGIN\n" +
@@ -55,11 +54,9 @@ public class DataBaseCenter {
 //            return false;
 //        }
         try (Connection connection = DriverManager.getConnection(URL, user, password)) {
-            String query = "INSERT INTO users VALUES ('" + login + "','" + pwd + "')";
+            String query = "INSERT INTO users VALUES ('" + newUser.getLogin() + "','" + newUser.getPassword() + "')";
             PreparedStatement preparedStatement = connection.prepareStatement(query);
             preparedStatement.execute();
-            this.loggedUser = login;
-            this.loggedPassword = pwd;
             return true;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -67,14 +64,12 @@ public class DataBaseCenter {
         }
     }
 
-    public boolean loginUser(String login, String pwd) {
+    public boolean loginUser(User loggingUser) {
         try (Connection connection = DriverManager.getConnection(URL, user, password)) {
             Statement statement = connection.createStatement();
             ResultSet resultSet = statement.executeQuery("SELECT * FROM users");
             while (resultSet.next()) {
-                if (resultSet.getString("user").equals(loggedUser) && resultSet.getString("password").equals(loggedPassword)) {
-                    this.loggedUser = login;
-                    this.loggedPassword = pwd;
+                if (resultSet.getString("user").equals(loggingUser.getLogin()) && resultSet.getString("password").equals(loggingUser.getPassword())) {
                     return true;
                 }
             }
@@ -85,13 +80,13 @@ public class DataBaseCenter {
         }
     }
 
-    public boolean addWorker(Worker worker) {
+    public boolean addWorker(Worker worker, User loggedUser) {
         try (Connection connection = DriverManager.getConnection(URL, user, password)) {
             String query = "INSERT INTO worker VALUES (" + worker.getId() + ",'" + worker.getName() + "'," + worker.getCoordinateX() +
                     "," + worker.getCoordinateY() + "," + worker.getSalary() + "," + worker.getEndDateString() + ",'" +
                     worker.getCreationDate() + "'," + worker.getPositionString() + "," + worker.getStatusString() + "," +
                     worker.getOrganizationNameString() + "," + worker.getOrganizationTypeString() + "," + worker.getAnnualTurnover() +
-                    "," + worker.getAddressStreet() + "," + worker.getAddressZipCode() + ",'" + loggedUser + "');";
+                    "," + worker.getAddressStreet() + "," + worker.getAddressZipCode() + ",'" + loggedUser.getLogin() + "');";
             PreparedStatement preparedStatement = connection.prepareStatement(query);
             preparedStatement.execute();
             return true;
@@ -101,23 +96,23 @@ public class DataBaseCenter {
         }
     }
 
-    public boolean addWorkerNoAG(Worker worker) {
-        try (Connection connection = DriverManager.getConnection(URL, user, password)) {
-            String query = "INSERT INTO worker VALUES ('" + worker.getName() + "'," + worker.getCoordinateX() +
-                    "," + worker.getCoordinateY() + "," + worker.getSalary() + "," + worker.getEndDateString() +
-                    "," + worker.getPositionString() + "," + worker.getStatusString() + "," +
-                    worker.getOrganizationNameString() + "," + worker.getOrganizationTypeString() + "," + worker.getAnnualTurnover() +
-                    "," + worker.getAddressStreet() + "," + worker.getAddressZipCode() + ",'" + loggedUser + "');";
-            PreparedStatement preparedStatement = connection.prepareStatement(query);
-            preparedStatement.execute();
-            return true;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
+//    public boolean addWorkerNoAG(Worker worker) {
+//        try (Connection connection = DriverManager.getConnection(URL, user, password)) {
+//            String query = "INSERT INTO worker VALUES ('" + worker.getName() + "'," + worker.getCoordinateX() +
+//                    "," + worker.getCoordinateY() + "," + worker.getSalary() + "," + worker.getEndDateString() +
+//                    "," + worker.getPositionString() + "," + worker.getStatusString() + "," +
+//                    worker.getOrganizationNameString() + "," + worker.getOrganizationTypeString() + "," + worker.getAnnualTurnover() +
+//                    "," + worker.getAddressStreet() + "," + worker.getAddressZipCode() + ",'" + loggedUser + "');";
+//            PreparedStatement preparedStatement = connection.prepareStatement(query);
+//            preparedStatement.execute();
+//            return true;
+//        } catch (SQLException e) {
+//            e.printStackTrace();
+//            return false;
+//        }
+//    }
 
-    public boolean updateWorker(Worker worker, long id) {
+    public boolean updateWorker(Worker worker, long id, User loggedUser) {
         try (Connection connection = DriverManager.getConnection(URL, user, password)) {
             System.out.println("UPDATING");
             String query = "SELECT creationdate FROM worker WHERE id = " + id;
@@ -134,9 +129,9 @@ public class DataBaseCenter {
 //                    worker.getAnnualTurnover() + " street = " + worker.getAddressStreet() + " postalcode = " + worker.getAddressZipCode() + "WHERE id = "
 //                    + worker.getId() + "AND user = '" + loggedUser + "';";
             worker.setCreationDate(creationDate);
-            removeWorker(id);
+            removeWorker(id, loggedUser);
             worker.setId(id);
-            addWorker(worker);
+            addWorker(worker, loggedUser);
             return true;
         } catch (SQLException e) {
             System.out.println("FAIL");
@@ -145,22 +140,17 @@ public class DataBaseCenter {
         }
     }
 
-    public boolean removeWorker(long id) {
+    public boolean removeWorker(long id, User loggedUser) {
         try (Connection connection = DriverManager.getConnection(URL, user, password)) {
-            System.out.println("REMOVING");
             String query = "SELECT * FROM worker WHERE id = " + id + ";";
             Statement statement = connection.createStatement();
-            System.out.println("CREATED");
             ResultSet resultSet = statement.executeQuery(query);
-            System.out.println("EXECUTED");
             while (resultSet.next()) {
-                System.out.println(resultSet.getString("user"));
-                System.out.println(loggedUser);
-                if (!resultSet.getString("user").equals(loggedUser))
+                if (!resultSet.getString("user").equals(loggedUser.getLogin()))
                     return false;
             }
             PreparedStatement preparedStatement = connection.prepareStatement("DELETE FROM worker WHERE id = " + id +
-                    " AND \"user\" = '" + loggedUser + "';");
+                    " AND \"user\" = '" + loggedUser.getLogin() + "';");
             preparedStatement.execute();
             return true;
         } catch (SQLException e) {
@@ -216,14 +206,14 @@ public class DataBaseCenter {
         }
     }
 
-    public boolean clearCollection() {
+    public boolean clearCollection(User loggedUser) {
         try (Connection connection = DriverManager.getConnection(URL, user, password)) {
             String query = "SELECT * FROM worker";
             Statement statement = connection.createStatement();
             ResultSet resultSet = statement.executeQuery(query);
             while (resultSet.next()) {
                 long id = resultSet.getLong(1);
-                String deletionQuery = "DELETE FROM worker WHERE id = " + id + " AND \"user\" = '" + loggedUser + "';";
+                String deletionQuery = "DELETE FROM worker WHERE id = " + id + " AND \"user\" = '" + loggedUser.toString() + "';";
                 PreparedStatement deletion = connection.prepareStatement(deletionQuery);
                 deletion.execute();
             }
@@ -253,11 +243,11 @@ public class DataBaseCenter {
         }
     }
 
-    public void setUser(String login) {
-        loggedUser = login;
-    }
-
-    public void setPassword(String pwd) {
-        loggedPassword = pwd;
-    }
+//    public void setUser(String login) {
+//        loggedUser = login;
+//    }
+//
+//    public void setPassword(String pwd) {
+//        loggedPassword = pwd;
+//    }
 }

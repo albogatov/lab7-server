@@ -2,6 +2,7 @@ package server;
 
 import commons.app.Command;
 import commons.app.CommandCenter;
+import commons.app.User;
 import commons.commands.Login;
 import commons.commands.Register;
 import commons.commands.Save;
@@ -11,15 +12,11 @@ import server.interaction.Storage;
 import server.interaction.StorageInteraction;
 import commons.utils.UserInterface;
 import server.utils.DataBaseCenter;
-import server.utils.PasswordEncoder;
-import server.utils.ReadyCSVParser;
 import commons.utils.SerializationTool;
 
-import javax.naming.LimitExceededException;
 import java.io.*;
 import java.net.*;
 import java.time.format.DateTimeParseException;
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -36,8 +33,7 @@ public class Server implements Runnable {
     private final int port = 7855;
     private Storage storage = new Storage();
     private InteractionInterface interactiveStorage = null;
-    String login;
-    String password;
+    boolean authorisation = false;
 
     public static void main(String[] args) {
         logger.log(Level.INFO, "commons.app.server operation initiated");
@@ -64,18 +60,28 @@ public class Server implements Runnable {
         Worker worker;
         try {
             logger.log(Level.INFO, "Receiving command from client");
+            System.out.println(1);
             datagramSocket.receive(inCommand);
+            System.out.println(2);
             cmd = (Command) new SerializationTool().deserializeObject(receiver);
+            System.out.println(3);
             InetAddress clientAddress = inCommand.getAddress();
+            System.out.println(4);
             CommandCenter.setClientAddress(clientAddress);
             int clientPort = inCommand.getPort();
+            System.out.println(5);
             CommandCenter.setClientPort(clientPort);
-            if (cmd.getCommand().equals("exit")) {
-                logger.log(Level.INFO, "Collection saving initiated");
-                CommandCenter.getInstance().executeCommand(userInterface, "save", interactiveStorage);
-            } else {
-                if (cmd.getClass().getName().contains(".Register") && authoriseUser(cmd.getArgument(), cmd.getAdditionalArgument(), "new") ||
-                        cmd.getClass().getName().contains(".Login") && authoriseUser(cmd.getArgument(), cmd.getAdditionalArgument(), "old")) {
+            System.out.println(6);
+            if (cmd.getClass().toString().contains(".Register"))
+                authorisation = authoriseUser(cmd.getUser(), "new");
+            if (cmd.getClass().toString().contains(".Login"))
+                authorisation = authoriseUser(cmd.getUser(), "old");
+            if (authorisation) {
+                System.out.println(7);
+                if (cmd.getCommand().equals("exit")) {
+                    logger.log(Level.INFO, "Collection saving initiated");
+                    CommandCenter.getInstance().executeCommand(userInterface, "save", interactiveStorage);
+                } else {
                     if (cmd.getArgumentAmount() == 0) {
                         logger.log(Level.INFO, "Executing command without arguments");
                         CommandCenter.getInstance().executeCommand(userInterface, cmd, interactiveStorage, dataBaseCenter);
@@ -96,6 +102,7 @@ public class Server implements Runnable {
                         worker = cmd.getObject();
                         CommandCenter.getInstance().executeCommand(userInterface, cmd, argument, interactiveStorage, worker, dataBaseCenter);
                     }
+
                 }
 //                if (cmd.getClass().getName().contains(".Register") && authoriseUser(cmd.getArgument(), cmd.getAdditionalArgument(), "new")) {
 //                    login = cmd.getArgument();
@@ -169,17 +176,9 @@ public class Server implements Runnable {
         }
     }
 
-    public boolean authoriseUser(String user, String password, String existence) {
-        System.out.println(PasswordEncoder.getHexString(password));
-//        String checkPwd = PasswordEncoder.hashOldPassword(password);
-        String saltedPwd = PasswordEncoder.getHexString(password);
-        System.out.println(saltedPwd);
-        dataBaseCenter.setUser(login);
-        dataBaseCenter.setPassword(saltedPwd);
+    public boolean authoriseUser(User user, String existence) {
         if (existence.equals("new")) {
-            if (dataBaseCenter.addUser(user, saltedPwd)) {
-                login = user;
-                this.password = saltedPwd;
+            if (dataBaseCenter.addUser(user)) {
                 CommandCenter.getInstance().executeCommand(userInterface, new Register(), true);
                 return true;
             } else {
@@ -187,10 +186,8 @@ public class Server implements Runnable {
                 return false;
             }
         } else {
-            if (dataBaseCenter.loginUser(user, saltedPwd)) {
+            if (dataBaseCenter.loginUser(user)) {
                 System.out.println("login true");
-                login = user;
-                this.password = saltedPwd;
                 CommandCenter.getInstance().executeCommand(userInterface, new Login(), true);
                 return true;
             } else {
