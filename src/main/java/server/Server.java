@@ -17,6 +17,8 @@ import commons.utils.SerializationTool;
 import java.io.*;
 import java.net.*;
 import java.time.format.DateTimeParseException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -33,7 +35,8 @@ public class Server implements Runnable {
     private final int port = 7855;
     private Storage storage = new Storage();
     private InteractionInterface interactiveStorage = null;
-    boolean authorisation = false;
+    private boolean authorisation = false;
+    private final ExecutorService fixedThreadPool = Executors.newFixedThreadPool(10);
 
     public static void main(String[] args) {
         logger.log(Level.INFO, "commons.app.server operation initiated");
@@ -74,6 +77,7 @@ public class Server implements Runnable {
                 if (cmd.getCommand().equals("exit")) {
                     logger.log(Level.INFO, "Collection saving initiated");
                     CommandCenter.getInstance().executeCommand(userInterface, "save", interactiveStorage);
+                    userInterface.messageToClient("Аривидерчи!", clientAddress, clientPort);
                 } else {
                     if (cmd.getArgumentAmount() == 0) {
                         logger.log(Level.INFO, "Executing command without arguments");
@@ -138,21 +142,25 @@ public class Server implements Runnable {
             datagramSocket = new DatagramSocket(port);
             userInterface.connectToServer(datagramSocket);
             logger.log(Level.INFO, "Collection successfully uploaded");
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                logger.log(Level.INFO, "Collection saving...");
-                CommandCenter.getInstance().executeServerCommand(new Save(), interactiveStorage);
-            }));
-            while (true) {
-                try {
-                    datagramSocket.setSoTimeout(60 * 1000);
-                    receive();
-                } catch (IOException e) {
-                    if (e instanceof SocketTimeoutException) {
-                        logger.log(Level.SEVERE, "Timeout is reached", e);
+//            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+//                logger.log(Level.INFO, "Collection saving...");
+//                CommandCenter.getInstance().executeServerCommand(new Save(), interactiveStorage);
+//            }));
+            fixedThreadPool.submit(() -> {
+                while (true) {
+                    try {
+                        datagramSocket.setSoTimeout(60 * 1000);
+                        receive();
+                    } catch (IOException e) {
+                        if (e instanceof SocketTimeoutException) {
+                            logger.log(Level.SEVERE, "Timeout is reached", e);
+                        } else {
+                            logger.log(Level.SEVERE, "Unexpected issue occured", e);
+                        }
                         break;
-                    } else throw e;
+                    }
                 }
-            }
+            });
         } catch (Exception e) {
             e.printStackTrace();
             logger.log(Level.SEVERE, "An I/O Exception has occurred", e);
