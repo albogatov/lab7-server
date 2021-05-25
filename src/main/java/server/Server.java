@@ -54,13 +54,13 @@ public class Server implements Runnable {
         this.arguments = arguments;
     }
 
-    private void receive() throws SocketTimeoutException {
+    private Command receive() throws SocketTimeoutException {
         logger.log(Level.INFO, "Receiving initiated");
         byte[] receiver = new byte[1000000];
         DatagramPacket inCommand = new DatagramPacket(receiver, receiver.length);
         Command cmd;
-        String argument;
-        Worker worker;
+//        String argument;
+//        Worker worker;
         try {
             logger.log(Level.INFO, "Receiving command from client");
             datagramSocket.receive(inCommand);
@@ -69,51 +69,93 @@ public class Server implements Runnable {
             CommandCenter.setClientAddress(clientAddress);
             int clientPort = inCommand.getPort();
             CommandCenter.setClientPort(clientPort);
-            if (cmd.getClass().toString().contains(".Register"))
-                authorisation = authoriseUser(cmd.getUser(), "new");
-            if (cmd.getClass().toString().contains(".Login"))
-                authorisation = authoriseUser(cmd.getUser(), "old");
-            if (authorisation) {
-                if (cmd.getCommand().equals("exit")) {
-                    logger.log(Level.INFO, "Collection saving initiated");
-                    CommandCenter.getInstance().executeCommand(userInterface, "save", interactiveStorage);
-                    userInterface.messageToClient("Аривидерчи!", clientAddress, clientPort);
-                } else {
-                    if (cmd.getArgumentAmount() == 0) {
-                        logger.log(Level.INFO, "Executing command without arguments");
-                        CommandCenter.getInstance().executeCommand(userInterface, cmd, interactiveStorage, dataBaseCenter);
-                    }
-                    if (cmd.getArgumentAmount() == 1 && !cmd.getNeedsObject()) {
-                        logger.log(Level.INFO, "Executing command with a String argument");
-                        argument = cmd.getArgument();
-                        CommandCenter.getInstance().executeCommand(userInterface, cmd, argument, interactiveStorage, dataBaseCenter);
-                    }
-                    if (cmd.getArgumentAmount() == 1 && cmd.getNeedsObject()) {
-                        logger.log(Level.INFO, "Executing command with an object as an argument");
-                        worker = cmd.getObject();
-                        CommandCenter.getInstance().executeCommand(userInterface, cmd, interactiveStorage, worker, dataBaseCenter);
-                    }
-                    if (cmd.getArgumentAmount() == 2 && cmd.getNeedsObject()) {
-                        logger.log(Level.INFO, "Executing command with arguments of various types");
-                        argument = cmd.getArgument();
-                        worker = cmd.getObject();
-                        CommandCenter.getInstance().executeCommand(userInterface, cmd, argument, interactiveStorage, worker, dataBaseCenter);
-                    }
-
-                }
-//                if (cmd.getClass().getName().contains(".Register") && authoriseUser(cmd.getArgument(), cmd.getAdditionalArgument(), "new")) {
-//                    login = cmd.getArgument();
-//                    password = cmd.getAdditionalArgument();
+            return cmd;
+//            if (cmd.getClass().toString().contains(".Register"))
+//                authorisation = authoriseUser(cmd.getUser(), "new");
+//            if (cmd.getClass().toString().contains(".Login"))
+//                authorisation = authoriseUser(cmd.getUser(), "old");
+//            if (authorisation) {
+//                if (cmd.getCommand().equals("exit")) {
+//                    logger.log(Level.INFO, "Collection saving initiated");
+//                    CommandCenter.getInstance().executeCommand(userInterface, "save", interactiveStorage);
+//                    userInterface.messageToClient("Аривидерчи!", clientAddress, clientPort);
+//                } else {
+//                    if (cmd.getArgumentAmount() == 0) {
+//                        logger.log(Level.INFO, "Executing command without arguments");
+//                        CommandCenter.getInstance().executeCommand(userInterface, cmd, interactiveStorage, dataBaseCenter);
+//                    }
+//                    if (cmd.getArgumentAmount() == 1 && !cmd.getNeedsObject()) {
+//                        logger.log(Level.INFO, "Executing command with a String argument");
+//                        argument = cmd.getArgument();
+//                        CommandCenter.getInstance().executeCommand(userInterface, cmd, argument, interactiveStorage, dataBaseCenter);
+//                    }
+//                    if (cmd.getArgumentAmount() == 1 && cmd.getNeedsObject()) {
+//                        logger.log(Level.INFO, "Executing command with an object as an argument");
+//                        worker = cmd.getObject();
+//                        CommandCenter.getInstance().executeCommand(userInterface, cmd, interactiveStorage, worker, dataBaseCenter);
+//                    }
+//                    if (cmd.getArgumentAmount() == 2 && cmd.getNeedsObject()) {
+//                        logger.log(Level.INFO, "Executing command with arguments of various types");
+//                        argument = cmd.getArgument();
+//                        worker = cmd.getObject();
+//                        CommandCenter.getInstance().executeCommand(userInterface, cmd, argument, interactiveStorage, worker, dataBaseCenter);
+//                    }
+//
 //                }
-//                if (cmd.getClass().getName().contains(".Login") && authoriseUser(cmd.getArgument(), cmd.getAdditionalArgument(), "old")) {
-//                    login = cmd.getArgument();
-//                    password = cmd.getAdditionalArgument();
-//                }
-            }
+////                if (cmd.getClass().getName().contains(".Register") && authoriseUser(cmd.getArgument(), cmd.getAdditionalArgument(), "new")) {
+////                    login = cmd.getArgument();
+////                    password = cmd.getAdditionalArgument();
+////                }
+////                if (cmd.getClass().getName().contains(".Login") && authoriseUser(cmd.getArgument(), cmd.getAdditionalArgument(), "old")) {
+////                    login = cmd.getArgument();
+////                    password = cmd.getAdditionalArgument();
+////                }
+//            }
         } catch (IOException e) {
             logger.log(Level.SEVERE, "An I/O Exception has occurred", e);
             if (e instanceof SocketTimeoutException)
                 throw new SocketTimeoutException("Timeout!!!");
+            return null;
+        }
+    }
+
+    public void processRequest(Command cmd) {
+        String argument;
+        Worker worker;
+        if (cmd.getClass().toString().contains(".Register"))
+            authorisation = authoriseUser(cmd.getUser(), "new");
+        if (cmd.getClass().toString().contains(".Login"))
+            authorisation = authoriseUser(cmd.getUser(), "old");
+        if (authorisation) {
+            if (cmd.getCommand().equals("exit")) {
+                logger.log(Level.INFO, "Collection saving initiated");
+                Command save = new Save();
+                save.setUser(cmd.getUser());
+                CommandCenter.getInstance().executeCommand(userInterface, save, interactiveStorage);
+//                userInterface.messageToClient("Аривидерчи!", clientAddress, clientPort);
+            } else {
+                if (cmd.getArgumentAmount() == 0) {
+                    logger.log(Level.INFO, "Executing command without arguments");
+                    CommandCenter.getInstance().executeCommand(userInterface, cmd, interactiveStorage, dataBaseCenter);
+                }
+                if (cmd.getArgumentAmount() == 1 && !cmd.getNeedsObject()) {
+                    logger.log(Level.INFO, "Executing command with a String argument");
+                    argument = cmd.getArgument();
+                    CommandCenter.getInstance().executeCommand(userInterface, cmd, argument, interactiveStorage, dataBaseCenter);
+                }
+                if (cmd.getArgumentAmount() == 1 && cmd.getNeedsObject()) {
+                    logger.log(Level.INFO, "Executing command with an object as an argument");
+                    worker = cmd.getObject();
+                    CommandCenter.getInstance().executeCommand(userInterface, cmd, interactiveStorage, worker, dataBaseCenter);
+                }
+                if (cmd.getArgumentAmount() == 2 && cmd.getNeedsObject()) {
+                    logger.log(Level.INFO, "Executing command with arguments of various types");
+                    argument = cmd.getArgument();
+                    worker = cmd.getObject();
+                    CommandCenter.getInstance().executeCommand(userInterface, cmd, argument, interactiveStorage, worker, dataBaseCenter);
+                }
+
+            }
         }
     }
 
@@ -124,6 +166,7 @@ public class Server implements Runnable {
         try {
             try {
                 logger.log(Level.INFO, "Reading the collection from database");
+                dataBaseCenter.setPassword(arguments[0]);
                 dataBaseCenter.createTable();
                 dataBaseCenter.retrieveCollectionFromDB(interactiveStorage);
             } catch (NullPointerException e) {
@@ -142,25 +185,40 @@ public class Server implements Runnable {
             datagramSocket = new DatagramSocket(port);
             userInterface.connectToServer(datagramSocket);
             logger.log(Level.INFO, "Collection successfully uploaded");
-//            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-//                logger.log(Level.INFO, "Collection saving...");
-//                CommandCenter.getInstance().executeServerCommand(new Save(), interactiveStorage);
-//            }));
-            fixedThreadPool.submit(() -> {
-                while (true) {
-                    try {
-                        datagramSocket.setSoTimeout(60 * 1000);
-                        receive();
-                    } catch (IOException e) {
-                        if (e instanceof SocketTimeoutException) {
-                            logger.log(Level.SEVERE, "Timeout is reached", e);
-                        } else {
-                            logger.log(Level.SEVERE, "Unexpected issue occured", e);
-                        }
-                        break;
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                logger.log(Level.INFO, "Collection saving...");
+                CommandCenter.getInstance().executeServerCommand(new Save(), interactiveStorage);
+            }));
+//            fixedThreadPool.submit(() -> {
+//                while (true) {
+//                    try {
+//                        datagramSocket.setSoTimeout(60 * 1000);
+//                        receive();
+//                    } catch (IOException e) {
+//                        if (e instanceof SocketTimeoutException) {
+//                            logger.log(Level.SEVERE, "Timeout is reached", e);
+//                        } else {
+//                            logger.log(Level.SEVERE, "Unexpected issue occured", e);
+//                        }
+//                        break;
+//                    }
+//                }
+//            });
+            while (true) {
+                try {
+                    datagramSocket.setSoTimeout(60 * 1000);
+                    Command cmd = fixedThreadPool.submit(this::receive).get();
+                    fixedThreadPool.submit(() -> {
+                        processRequest(cmd);
+                    });
+                } catch (IOException e) {
+                    if (e instanceof SocketTimeoutException) {
+                        logger.log(Level.SEVERE, "Timeout is reached", e);
+                    } else {
+                        logger.log(Level.SEVERE, "Unexpected issue occured", e);
                     }
                 }
-            });
+            }
         } catch (Exception e) {
             e.printStackTrace();
             logger.log(Level.SEVERE, "An I/O Exception has occurred", e);

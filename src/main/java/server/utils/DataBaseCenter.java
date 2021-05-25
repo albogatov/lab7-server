@@ -69,7 +69,7 @@ public class DataBaseCenter {
             Statement statement = connection.createStatement();
             ResultSet resultSet = statement.executeQuery("SELECT * FROM users");
             while (resultSet.next()) {
-                if (resultSet.getString("user").equals(loggingUser.getLogin()) && resultSet.getString("password").equals(loggingUser.getPassword())) {
+                if (resultSet.getString("username").equals(loggingUser.getLogin()) && resultSet.getString("password").equals(loggingUser.getPassword())) {
                     return true;
                 }
             }
@@ -82,13 +82,18 @@ public class DataBaseCenter {
 
     public boolean addWorker(Worker worker, User loggedUser) {
         try (Connection connection = DriverManager.getConnection(URL, user, password)) {
-            String query = "INSERT INTO worker VALUES (" + worker.getId() + ",'" + worker.getName() + "'," + worker.getCoordinateX() +
+            String query = "INSERT INTO worker (name, x, y, salary, enddate, creationdate, position, status, organizationname, " +
+                    "orgtype, annualturnover, street, postalcode, \"username\") VALUES ('" + worker.getName() + "'," + worker.getCoordinateX() +
                     "," + worker.getCoordinateY() + "," + worker.getSalary() + "," + worker.getEndDateString() + ",'" +
                     worker.getCreationDate() + "'," + worker.getPositionString() + "," + worker.getStatusString() + "," +
                     worker.getOrganizationNameString() + "," + worker.getOrganizationTypeString() + "," + worker.getAnnualTurnover() +
                     "," + worker.getAddressStreet() + "," + worker.getAddressZipCode() + ",'" + loggedUser.getLogin() + "');";
-            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            PreparedStatement preparedStatement = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS);
             preparedStatement.execute();
+            ResultSet generated = preparedStatement.getGeneratedKeys();
+            if (generated.next())
+                worker.setId(generated.getLong(1));
+            else throw new SQLException();
             return true;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -114,7 +119,6 @@ public class DataBaseCenter {
 
     public boolean updateWorker(Worker worker, long id, User loggedUser) {
         try (Connection connection = DriverManager.getConnection(URL, user, password)) {
-            System.out.println("UPDATING");
             String query = "SELECT creationdate FROM worker WHERE id = " + id;
             Statement statement = connection.createStatement();
             ResultSet resultSet = statement.executeQuery(query);
@@ -123,18 +127,20 @@ public class DataBaseCenter {
                 creationDate = ZonedDateTime.parse(String.valueOf(resultSet.getTimestamp(1)), DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.S", Locale.ENGLISH)
                         .withZone(ZoneOffset.UTC));
             }
-//            String query = "UPDATE worker SET id = " + worker.getId() + " name = '" + worker.getName() + "' x = " + worker.getCoordinateX() + " y ="
-//                    + worker.getCoordinateY() + " salary = " + worker.getSalary() + " enddate = " + worker.getEndDateString() + "position = " + worker.getPositionString() + " status = " + worker.getStatusString() +
-//                    " organizationname = " + worker.getOrganizationNameString() + " orgtype = " + worker.getOrganizationTypeString() + " annualturnover = " +
-//                    worker.getAnnualTurnover() + " street = " + worker.getAddressStreet() + " postalcode = " + worker.getAddressZipCode() + "WHERE id = "
-//                    + worker.getId() + "AND user = '" + loggedUser + "';";
+            String queryUpdate = "UPDATE worker SET name = '" + worker.getName() + "', x = " + worker.getCoordinateX() + ", y ="
+                    + worker.getCoordinateY() + ", salary = " + worker.getSalary() + ", enddate = " + worker.getEndDateString() + ", position = " + worker.getPositionString() + ", status = " + worker.getStatusString() +
+                    ", organizationname = " + worker.getOrganizationNameString() + ", orgtype = " + worker.getOrganizationTypeString() + ", annualturnover = " +
+                    worker.getAnnualTurnover() + ", street = " + worker.getAddressStreet() + ", postalcode = " + worker.getAddressZipCode() + " WHERE id = "
+                    + id + " AND username = '" + loggedUser.getLogin() + "';";
+            System.out.println(queryUpdate);
             worker.setCreationDate(creationDate);
-            removeWorker(id, loggedUser);
-            worker.setId(id);
-            addWorker(worker, loggedUser);
+//            removeWorker(id, loggedUser);
+//            worker.setId(id);
+//            addWorker(worker, loggedUser);
+            PreparedStatement preparedStatement = connection.prepareStatement(queryUpdate);
+            preparedStatement.execute();
             return true;
         } catch (SQLException e) {
-            System.out.println("FAIL");
             e.printStackTrace();
             return false;
         }
@@ -146,11 +152,11 @@ public class DataBaseCenter {
             Statement statement = connection.createStatement();
             ResultSet resultSet = statement.executeQuery(query);
             while (resultSet.next()) {
-                if (!resultSet.getString("user").equals(loggedUser.getLogin()))
+                if (!resultSet.getString("username").equals(loggedUser.getLogin()))
                     return false;
             }
             PreparedStatement preparedStatement = connection.prepareStatement("DELETE FROM worker WHERE id = " + id +
-                    " AND \"user\" = '" + loggedUser.getLogin() + "';");
+                    " AND \"username\" = '" + loggedUser.getLogin() + "';");
             preparedStatement.execute();
             return true;
         } catch (SQLException e) {
@@ -213,7 +219,7 @@ public class DataBaseCenter {
             ResultSet resultSet = statement.executeQuery(query);
             while (resultSet.next()) {
                 long id = resultSet.getLong(1);
-                String deletionQuery = "DELETE FROM worker WHERE id = " + id + " AND \"user\" = '" + loggedUser.toString() + "';";
+                String deletionQuery = "DELETE FROM worker WHERE id = " + id + " AND \"username\" = '" + loggedUser.toString() + "';";
                 PreparedStatement deletion = connection.prepareStatement(deletionQuery);
                 deletion.execute();
             }
@@ -226,16 +232,19 @@ public class DataBaseCenter {
 
     public boolean createTable() {
         try (Connection connection = DriverManager.getConnection(URL, user, password)) {
-            String query = "CREATE TABLE IF NOT EXISTS worker " +
-                    "(id BIGINT NOT NULL, name VARCHAR (50) NOT NULL, x INT NOT NULL, y BIGINT NOT NULL, " +
-                    "salary INT NOT NULL, enddate DATE, creationdate TIMESTAMP NOT NULL, position VARCHAR(50)," +
-                    "status VARCHAR(50), organizationname VARCHAR(50), orgtype VARCHAR(50), annualturnover INT," +
+            String query1 = "CREATE SEQUENCE IF NOT EXISTS workerid START 1;";
+            String query2 = "CREATE TABLE IF NOT EXISTS worker " +
+                    "(id BIGINT NOT NULL UNIQUE, name VARCHAR (50) NOT NULL DEFAULT nextval('workerid'), x INT NOT NULL CHECK (x <= 627), y BIGINT NOT NULL CHECK (y <= 990), " +
+                    "salary INT NOT NULL CHECK (salary >= 0), enddate DATE, creationdate TIMESTAMP NOT NULL, position VARCHAR(50)," +
+                    "status VARCHAR(50), organizationname VARCHAR(50), orgtype VARCHAR(50), annualturnover INT CHECK (annualturnover >= 0)," +
                     "street VARCHAR (50), postalcode VARCHAR(50));";
-            PreparedStatement statement = connection.prepareStatement(query);
+            String query3 = "CREATE TABLE IF NOT EXISTS users" + "(\"username\" VARCHAR(50), password VARCHAR(100))";
+            PreparedStatement statement = connection.prepareStatement(query1);
             statement.execute();
-            String query2 = "CREATE TABLE IF NOT EXISTS users" + "(\"user\" VARCHAR(50), password VARCHAR(100))";
-            PreparedStatement statement2 = connection.prepareStatement(query2);
-            statement2.execute();
+            statement = connection.prepareStatement(query2);
+            statement.execute();
+            statement = connection.prepareStatement(query3);
+            statement.execute();
             return true;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -243,11 +252,12 @@ public class DataBaseCenter {
         }
     }
 
-//    public void setUser(String login) {
+    //    public void setUser(String login) {
 //        loggedUser = login;
 //    }
 //
-//    public void setPassword(String pwd) {
-//        loggedPassword = pwd;
-//    }
+    public void setPassword(String pwd) {
+        password = pwd;
+    }
+
 }
