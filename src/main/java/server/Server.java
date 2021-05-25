@@ -59,8 +59,6 @@ public class Server implements Runnable {
         byte[] receiver = new byte[1000000];
         DatagramPacket inCommand = new DatagramPacket(receiver, receiver.length);
         Command cmd;
-//        String argument;
-//        Worker worker;
         try {
             logger.log(Level.INFO, "Receiving command from client");
             datagramSocket.receive(inCommand);
@@ -70,47 +68,6 @@ public class Server implements Runnable {
             int clientPort = inCommand.getPort();
             CommandCenter.setClientPort(clientPort);
             return cmd;
-//            if (cmd.getClass().toString().contains(".Register"))
-//                authorisation = authoriseUser(cmd.getUser(), "new");
-//            if (cmd.getClass().toString().contains(".Login"))
-//                authorisation = authoriseUser(cmd.getUser(), "old");
-//            if (authorisation) {
-//                if (cmd.getCommand().equals("exit")) {
-//                    logger.log(Level.INFO, "Collection saving initiated");
-//                    CommandCenter.getInstance().executeCommand(userInterface, "save", interactiveStorage);
-//                    userInterface.messageToClient("Аривидерчи!", clientAddress, clientPort);
-//                } else {
-//                    if (cmd.getArgumentAmount() == 0) {
-//                        logger.log(Level.INFO, "Executing command without arguments");
-//                        CommandCenter.getInstance().executeCommand(userInterface, cmd, interactiveStorage, dataBaseCenter);
-//                    }
-//                    if (cmd.getArgumentAmount() == 1 && !cmd.getNeedsObject()) {
-//                        logger.log(Level.INFO, "Executing command with a String argument");
-//                        argument = cmd.getArgument();
-//                        CommandCenter.getInstance().executeCommand(userInterface, cmd, argument, interactiveStorage, dataBaseCenter);
-//                    }
-//                    if (cmd.getArgumentAmount() == 1 && cmd.getNeedsObject()) {
-//                        logger.log(Level.INFO, "Executing command with an object as an argument");
-//                        worker = cmd.getObject();
-//                        CommandCenter.getInstance().executeCommand(userInterface, cmd, interactiveStorage, worker, dataBaseCenter);
-//                    }
-//                    if (cmd.getArgumentAmount() == 2 && cmd.getNeedsObject()) {
-//                        logger.log(Level.INFO, "Executing command with arguments of various types");
-//                        argument = cmd.getArgument();
-//                        worker = cmd.getObject();
-//                        CommandCenter.getInstance().executeCommand(userInterface, cmd, argument, interactiveStorage, worker, dataBaseCenter);
-//                    }
-//
-//                }
-////                if (cmd.getClass().getName().contains(".Register") && authoriseUser(cmd.getArgument(), cmd.getAdditionalArgument(), "new")) {
-////                    login = cmd.getArgument();
-////                    password = cmd.getAdditionalArgument();
-////                }
-////                if (cmd.getClass().getName().contains(".Login") && authoriseUser(cmd.getArgument(), cmd.getAdditionalArgument(), "old")) {
-////                    login = cmd.getArgument();
-////                    password = cmd.getAdditionalArgument();
-////                }
-//            }
         } catch (IOException e) {
             logger.log(Level.SEVERE, "An I/O Exception has occurred", e);
             if (e instanceof SocketTimeoutException)
@@ -132,7 +89,6 @@ public class Server implements Runnable {
                 Command save = new Save();
                 save.setUser(cmd.getUser());
                 CommandCenter.getInstance().executeCommand(userInterface, save, interactiveStorage);
-//                userInterface.messageToClient("Аривидерчи!", clientAddress, clientPort);
             } else {
                 if (cmd.getArgumentAmount() == 0) {
                     logger.log(Level.INFO, "Executing command without arguments");

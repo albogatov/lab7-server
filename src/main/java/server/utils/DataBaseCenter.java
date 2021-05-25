@@ -17,15 +17,7 @@ import java.util.Locale;
 public class DataBaseCenter {
     private final String URL = "jdbc:postgresql://localhost:5432/postgres";
     private String user = "postgres";
-    private String password = "zaqsedxcft";
-
-    {
-        try (Connection connection = DriverManager.getConnection(URL, user, password)) {
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
+    private String password = "";
 
     public DataBaseCenter() {
         try {
