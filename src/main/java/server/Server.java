@@ -126,16 +126,16 @@ public class Server implements Runnable, ConnectionSource {
                 dataBaseCenter.createTable();
                 dataBaseCenter.retrieveCollectionFromDB(interactiveStorage);
             } catch (NullPointerException e) {
-                logger.log(Level.SEVERE, "File data is invalid or incorrect CSV separator was chosen", e);
+                logger.log(Level.SEVERE, "Data is invalid", e);
                 System.exit(-1);
             } catch (DateTimeParseException e) {
-                logger.log(Level.SEVERE, "Date formatting in the original file is invalid", e);
+                logger.log(Level.SEVERE, "Date formatting is invalid", e);
                 System.exit(-1);
             } catch (ArrayIndexOutOfBoundsException e) {
-                logger.log(Level.SEVERE, "The file is invalid, empty lines possible", e);
+                logger.log(Level.SEVERE, "Not enough arguments", e);
                 System.exit(-1);
             } catch (IllegalArgumentException e) {
-                logger.log(Level.SEVERE, "File is invalid", e);
+                logger.log(Level.SEVERE, "Invalid arguments", e);
                 System.exit(-1);
             }
             datagramSocket = new DatagramSocket(port);
@@ -160,7 +160,7 @@ public class Server implements Runnable, ConnectionSource {
             }
         } catch (Exception e) {
             e.printStackTrace();
-            logger.log(Level.SEVERE, "An I/O Exception has occurred", e);
+            logger.log(Level.SEVERE, "An Exception has occurred", e);
         } finally {
             try {
                 logger.log(Level.INFO, "Collection saving...");
