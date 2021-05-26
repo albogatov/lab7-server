@@ -8,27 +8,28 @@ import commons.commands.Register;
 import commons.commands.Save;
 import commons.elements.Worker;
 import commons.utils.InteractionInterface;
-import server.interaction.Storage;
+import commons.utils.Storage;
 import server.interaction.StorageInteraction;
 import commons.utils.UserInterface;
-import server.utils.DataBaseCenter;
+import commons.utils.ConnectionSource;
+import commons.utils.DataBaseCenter;
 import commons.utils.SerializationTool;
 
 import java.io.*;
 import java.net.*;
+import java.sql.Connection;
 import java.time.format.DateTimeParseException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class Server implements Runnable {
+public class Server implements Runnable, ConnectionSource {
     public static final Logger logger = Logger.getLogger(
             Server.class.getName());
     private DataBaseCenter dataBaseCenter;
     private String[] arguments;
     private DatagramSocket datagramSocket;
-    private File dataFile;
     private Character separator = null;
     private final UserInterface userInterface = new UserInterface(new InputStreamReader(System.in),
             new OutputStreamWriter(System.out), true);
@@ -54,7 +55,7 @@ public class Server implements Runnable {
         this.arguments = arguments;
     }
 
-    private Command receive() throws SocketTimeoutException {
+    public Command receive() throws SocketTimeoutException {
         logger.log(Level.INFO, "Receiving initiated");
         byte[] receiver = new byte[1000000];
         DatagramPacket inCommand = new DatagramPacket(receiver, receiver.length);

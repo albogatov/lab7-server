@@ -3,6 +3,7 @@ package server.interaction;
 import commons.elements.Status;
 import commons.elements.Worker;
 import commons.utils.InteractionInterface;
+import commons.utils.Storage;
 
 import javax.naming.LimitExceededException;
 import java.io.FileNotFoundException;
