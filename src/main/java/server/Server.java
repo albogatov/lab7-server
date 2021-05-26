@@ -27,14 +27,13 @@ import java.util.logging.Logger;
 public class Server implements Runnable, ConnectionSource {
     public static final Logger logger = Logger.getLogger(
             Server.class.getName());
-    private DataBaseCenter dataBaseCenter;
+    private final DataBaseCenter dataBaseCenter;
     private String[] arguments;
     private DatagramSocket datagramSocket;
-    private Character separator = null;
     private final UserInterface userInterface = new UserInterface(new InputStreamReader(System.in),
             new OutputStreamWriter(System.out), true);
     private final int port = 7855;
-    private Storage storage = new Storage();
+    private final Storage storage = new Storage();
     private InteractionInterface interactiveStorage = null;
     private boolean authorisation = false;
     private final ExecutorService fixedThreadPool = Executors.newFixedThreadPool(10);
@@ -146,28 +145,11 @@ public class Server implements Runnable, ConnectionSource {
                 logger.log(Level.INFO, "Collection saving...");
                 CommandCenter.getInstance().executeServerCommand(new Save(), interactiveStorage);
             }));
-//            fixedThreadPool.submit(() -> {
-//                while (true) {
-//                    try {
-//                        datagramSocket.setSoTimeout(60 * 1000);
-//                        receive();
-//                    } catch (IOException e) {
-//                        if (e instanceof SocketTimeoutException) {
-//                            logger.log(Level.SEVERE, "Timeout is reached", e);
-//                        } else {
-//                            logger.log(Level.SEVERE, "Unexpected issue occured", e);
-//                        }
-//                        break;
-//                    }
-//                }
-//            });
             while (true) {
                 try {
                     datagramSocket.setSoTimeout(60 * 1000);
                     Command cmd = fixedThreadPool.submit(this::receive).get();
-                    fixedThreadPool.submit(() -> {
-                        processRequest(cmd);
-                    });
+                    fixedThreadPool.submit(() -> processRequest(cmd));
                 } catch (IOException e) {
                     if (e instanceof SocketTimeoutException) {
                         logger.log(Level.SEVERE, "Timeout is reached", e);
